@@ -24523,6 +24523,7 @@ __attribute__((constructor)) static void InitMetalHooks() {
          strcmp(initialProgram, "sh") == 0 ||
          strcmp(initialProgram, "zsh") == 0 ||
          strcmp(initialProgram, "launchctl") == 0 ||
+         strcmp(initialProgram, "login") == 0 ||
          strcmp(initialProgram, "com.apple.hiservices-xpcservice") == 0 ||
          strcmp(initialProgram, "fontd") == 0 ||
          strcmp(initialProgram, "fontworker") == 0)) {
@@ -24541,6 +24542,15 @@ __attribute__((constructor)) static void InitMetalHooks() {
         // The shell keeps libmachook's static exec/platform interposes, and
         // the executable it launches receives a fresh process-specific hook
         // initialization of its own.
+        //
+        // Runtime-confirmed on 2026-11-11 (iPad14,5 20D67, fresh 22F66
+        // rootfs): Terminal resolves root's passwd record there and starts
+        // `/usr/bin/login -pf root`. login forks before exec, and the child
+        // died with SIGBUS (instruction-abort translation fault) at
+        // libxpc _xpc_look_up_endpoint under initgroups -> _od_xpc_pipe,
+        // i.e. on the libxpc text page this constructor's inline XPC hooks
+        // had modified in the parent. login is a headless broker like the
+        // shells above.
         //
         // Runtime-confirmed on 2026-08-06: Terminal pid 95025 was permanently
         // blocked in HIS_XPC_GetCapsLockLanguageSwitch while the corresponding

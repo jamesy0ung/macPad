@@ -3891,9 +3891,19 @@ static BOOL MacWSRequestHostOpenDocuments(NSString *applicationPath,
     xpc_connection_set_event_handler(connection,
         ^(xpc_object_t event) { (void)event; });
     xpc_connection_resume(connection);
+    // A double-clicked application bundle resolves to itself as its own
+    // "default application". hostd's document route accepts only regular
+    // files, so runtime on 2026-11-11 rejected exactly that request
+    // ("open-documents reject ... requested=.../System Information.app").
+    // Launch the bundle through the same validated launch-path operation
+    // Dock's LaunchServices fallback uses.
+    BOOL applicationItself = paths.count == 1 &&
+        [paths[0] isEqualToString:applicationPath];
     xpc_object_t request = xpc_dictionary_create(NULL, NULL, 0);
     xpc_dictionary_set_string(request, MACWS_CONTROL_KEY_OP,
-                              MACWS_CONTROL_OP_OPEN_DOCUMENTS);
+                              applicationItself
+                                  ? MACWS_CONTROL_OP_LAUNCH_PATH
+                                  : MACWS_CONTROL_OP_OPEN_DOCUMENTS);
     xpc_dictionary_set_string(request, MACWS_CONTROL_KEY_APP_PATH,
                               applicationPath.fileSystemRepresentation);
     xpc_object_t documents = xpc_array_create(NULL, 0);
