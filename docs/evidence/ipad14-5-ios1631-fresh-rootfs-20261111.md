@@ -120,6 +120,22 @@ Registering their existing CDHashes (no re-sign) made a standalone
 `dlopen_preflight`/`dlopen` of `SPUSBReporter` succeed. `macos_gui.sh` now
 restores `System/Library/SystemProfiler` with the cold-boot trust closure.
 
+## IDA Professional 9.5: os_sync_* on Ventura
+
+IDA's Qt 6 (`QtCore`, minos 12.0, SDK 14.5) crashed on a QThreadPool worker
+before its first window. libmachook's `MACWS_AGX_CRASH_DIAG` recorder (IDA's
+own handler otherwise masks the fault) showed `SIGSEGV pc=0x0
+lr=QtCore QLatch::waitInternal+0x3c`. Disassembly: that function calls
+`_os_sync_wait_on_address` unconditionally; QtCore weak-imports it and its
+three siblings, which first shipped in macOS 14.4, so on 22F66 they bind to
+NULL. `Compatibility/MacWSOSSyncCompat.c` provides them on the ulock
+primitives Ventura exports and fills only GOT slots dyld left NULL; it does
+nothing when the system has the real functions. A host unit test covered
+timeout (`ETIMEDOUT`), wake without waiters (`ENOENT`), invalid size
+(`EINVAL`) and a cross-thread wait/wake; it also found that `__ulock_wait2`
+returns `EFAULT` for a never-touched page, so the wait touches and retries
+once. With the shim IDA starts and runs on the device.
+
 ## Open
 
 - `open .` returns `-600 procNotFound` (Finder is not an LS-launched process);
