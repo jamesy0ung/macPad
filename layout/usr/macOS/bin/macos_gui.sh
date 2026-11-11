@@ -1659,6 +1659,14 @@ restore_cold_boot_trust() {
     # "[Process completed]". Same non-exec load class as Hydra above.
     set -- "$@" "$ROOTFS/usr/lib/pam"
 
+    # System Information and system_profiler load their reporters with
+    # NSBundle. macOS dyld admits arm64e plug-ins only as platform binaries
+    # (dyld-1066 getMainArchs: osBinariesOnly), which here means a current-boot
+    # trustcache entry. Runtime-confirmed on 2026-11-11: every
+    # SystemProfiler/*.spreporter failed with "missing compatible architecture
+    # (have 'x86_64,arm64e', need '')" and the app showed no categories.
+    set -- "$@" "$ROOTFS/System/Library/SystemProfiler"
+
     # Cursor Agent loads signed native Node add-ons with dlopen after its
     # already-trusted Node executable has started. Dopamine's dynamic
     # trustcache is reboot-volatile, so autosignd's exec hook cannot repair

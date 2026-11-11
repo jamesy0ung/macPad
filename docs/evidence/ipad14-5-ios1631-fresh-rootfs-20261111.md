@@ -102,6 +102,24 @@ render and respond (Appearance confirmed). Remaining denials:
 `iokit-get-properties` for `IOService` / `AppleDiagnosticDataAccessReadOnly`,
 `com.apple.audio.audiohald` (Accessibility), `com.apple.corefollowup.agent`.
 
+## System Information: empty sidebar
+
+After the LinkBinding fix the window opened ("iPad Pro" title) with no
+categories. oslog showed every reporter failing to load:
+
+```text
++[SPReporter reporterBundles] -- Error loading /System/Library/SystemProfiler/SPUSBReporter.spreporter:
+dlopen_preflight(...) => false ... fat file, but missing compatible architecture (have 'x86_64,arm64e', need '')
+```
+
+dyld-1066 `ProcessConfig::Process::getMainArchs` sets `osBinariesOnly` on
+macOS, so an arm64e process grades only platform-binary arm64e slices; the
+empty `need ''` is that list printed for a non-platform file. The reporters
+keep their Apple signatures but were not in the dynamic trustcache.
+Registering their existing CDHashes (no re-sign) made a standalone
+`dlopen_preflight`/`dlopen` of `SPUSBReporter` succeed. `macos_gui.sh` now
+restores `System/Library/SystemProfiler` with the cold-boot trust closure.
+
 ## Open
 
 - `open .` returns `-600 procNotFound` (Finder is not an LS-launched process);
