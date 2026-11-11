@@ -7,7 +7,12 @@ ROOTFS=/var/mnt/rootfs
 EXTENSIONS_ROOT="$ROOTFS/System/Library/ExtensionKit/Extensions"
 SETTINGS_PLUGINS_ROOT="$ROOTFS/System/Applications/System Settings.app/Contents/PlugIns"
 LIBMACHOOK=/var/jb/usr/macOS/lib/libmachook.dylib
-SUBSTRATE=/var/jb/usr/lib/libellekit.dylib
+# Use the chroot's own macOS CydiaSubstrate, not the iOS ElleKit. ElleKit 1.2
+# gates its exception-handler hook on `#available(iOS 17.4, *)`, which is
+# always true in a macOS-tagged image, so a tiny shared-cache target with a far
+# replacement gets a truncated B. Runtime-confirmed 2026-11-11 (iPad14,5,
+# ElleKit 1.2): ControlCenter jumped to its replacement address mod 2^28.
+SUBSTRATE=$ROOTFS/System/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate
 TRAMPOLINES="$ROOTFS/usr/lib/libobjc-trampolines.dylib"
 MACHO_PATCHER=/var/jb/usr/macOS/bin/set_macos_version.py
 LOAD_PATCHER=/var/jb/usr/macOS/bin/add_macho_load_dylib.py
@@ -305,14 +310,10 @@ prepare_extension() {
     trust_macho "$frameworks/libmachook.dylib"
 
     substrate_local="$frameworks/.jbroot/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate"
-    if [ ! -f "$substrate_local" ] ||
-       ! $OTOOL -l "$substrate_local" 2>/dev/null |
-           grep -A4 LC_BUILD_VERSION | grep -q 'platform 1'; then
-        fresh_copy_if_changed "$SUBSTRATE" "$substrate_local"
-        /var/jb/usr/bin/python3 "$MACHO_PATCHER" "$substrate_local"
-        $LDID -S -M "$substrate_local"
-        $LDID -S -M "$substrate_local"
-    fi
+    # SUBSTRATE is already the macOS-tagged, signed chroot image; keep each
+    # pane byte-identical to it. A platform-only check left 48 panes on the
+    # earlier ElleKit 1.2 copy after the source changed.
+    fresh_copy_if_changed "$SUBSTRATE" "$substrate_local"
     trust_macho "$substrate_local"
 
     fresh_copy_if_changed "$TRAMPOLINES" "$frameworks/libobjc-trampolines.dylib"
@@ -332,8 +333,10 @@ prepare_extension() {
     done
 
     entitlements=$($LDID -e "$executable" 2>/dev/null || true)
+    # Probe the newest exception so an extended SETTINGS_ENT re-signs panes.
     printf '%s\n' "$entitlements" |
-        grep -q 'com.apple.macosbooter.lsd.modifydb' || changed=1
+        grep -q 'com.apple.macosbooter.DiskArbitration.diskarbitrationd' ||
+        changed=1
     $LDID -h "$executable" 2>/dev/null |
         grep -Fqx "Identifier=$identifier" || changed=1
     if [ "$changed" -eq 1 ]; then
@@ -506,20 +509,8 @@ repair_dependency_runtime() {
         fresh_copy_if_changed \
             "$TRAMPOLINES" "$frameworks/libobjc-trampolines.dylib" || return 1
 
-        if [ "$marker_base_substrate" != "$RUNTIME_SUBSTRATE_HASH" ] ||
-           ! $OTOOL -l "$substrate_local" 2>/dev/null |
-               grep -A4 LC_BUILD_VERSION | grep -q 'platform 1'; then
-            fresh_copy_if_changed "$SUBSTRATE" "$substrate_local" ||
-                return 1
-            /var/jb/usr/bin/python3 "$MACHO_PATCHER" "$substrate_local" ||
-                return 1
-            $LDID -S -M "$substrate_local" || return 1
-            $LDID -S -M "$substrate_local" || return 1
-            local_substrate_hash=$(selected_cdhash "$substrate_local")
-            [ -n "$local_substrate_hash" ] || return 1
-        else
-            local_substrate_hash="$marker_substrate"
-        fi
+        fresh_copy_if_changed "$SUBSTRATE" "$substrate_local" || return 1
+        local_substrate_hash="$RUNTIME_SUBSTRATE_HASH"
 
         for hash in "$marker_executable" "$marker_carrier" \
                     "$RUNTIME_HOOK_HASH" "$local_substrate_hash" \

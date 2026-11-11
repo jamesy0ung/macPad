@@ -48,6 +48,20 @@
         <string>com.apple.windowserver</string>
         <string>com.apple.windowserver.active</string>
         <string>com.apple.windowserver.watchdog</string>
+        <!-- Runtime-denied for running panes on 2026-11-11 (iPad14,5
+             20D67, Dopamine 3.0.13) once the iOS extension container was
+             applied: oslog `Sandbox: <pane> deny(1) mach-lookup <name>`. -->
+        <string>com.apple.macosbooter.DiskArbitration.diskarbitrationd</string>
+        <string>com.apple.macosbooter.CoreServices.coreservicesd</string>
+        <string>com.apple.window_proxies</string>
+        <string>com.apple.dock.server</string>
+        <string>com.apple.dock.fullscreen</string>
+        <string>com.apple.coreservices.appleevents</string>
+        <string>com.apple.distributed_notifications@Uv3</string>
+        <string>com.apple.tccd.system</string>
+        <string>com.apple.system.opendirectoryd.libinfo</string>
+        <string>com.apple.system.opendirectoryd.membership</string>
+        <string>com.apple.bsd.dirhelper</string>
     </array>
     <key>com.apple.security.exception.files.absolute-path.read-write</key>
     <string>/private/var/mnt/rootfs/</string>

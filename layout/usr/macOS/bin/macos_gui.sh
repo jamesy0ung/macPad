@@ -1652,6 +1652,13 @@ restore_cold_boot_trust() {
     # re-sign the framework or alter its nested-code relationship.
     set -- "$@" "$ROOTFS/System/Library/PrivateFrameworks/Hydra.framework"
 
+    # Terminal starts `login -pf root` whenever getpwuid resolves root, and
+    # login dlopens its PAM modules. Runtime-confirmed on 2026-11-11 (fresh
+    # 22F66 rootfs): untrusted modules were rejected by AMFI ("unsuitable CT
+    # policy") and login exited 1, so every Terminal window ended at
+    # "[Process completed]". Same non-exec load class as Hydra above.
+    set -- "$@" "$ROOTFS/usr/lib/pam"
+
     # Cursor Agent loads signed native Node add-ons with dlopen after its
     # already-trusted Node executable has started. Dopamine's dynamic
     # trustcache is reboot-volatile, so autosignd's exec hook cannot repair
@@ -5503,6 +5510,7 @@ case "$CMD" in
         start_stage_started=$SECONDS
         write_gui_start_state trust "restoring executable trust for this boot"
         bash /var/jb/usr/macOS/bin/ensure_jb_usr_bind.sh || { stop_all; exit 1; }
+        bash /var/jb/usr/macOS/bin/ensure_settings_container_bind.sh || { stop_all; exit 1; }
         ensure_chroot_works || { stop_all; exit 1; }
         log "TIMING gui-start stage=trust seconds=$((SECONDS - start_stage_started)) total=$((SECONDS - start_started))"
         start_stage_started=$SECONDS
@@ -5583,6 +5591,7 @@ case "$CMD" in
         start_watchdog || { stop_all; exit 1; }
         write_gui_start_state trust "restoring executable trust for this boot"
         bash /var/jb/usr/macOS/bin/ensure_jb_usr_bind.sh || { stop_all; exit 1; }
+        bash /var/jb/usr/macOS/bin/ensure_settings_container_bind.sh || { stop_all; exit 1; }
         ensure_chroot_works || { stop_all; exit 1; }
         write_gui_start_state services "starting catalogs, WindowServer, bridges, and applications"
         start_macos || { stop_all; exit 1; }

@@ -1576,8 +1576,15 @@ fi
 mkdir -p "$MPSIMAGE_COMPAT_DIR" "$METAL2METAL_ROUTE_DIR" || exit 1
 MPSIMAGE_COMPAT_TMP="$MPSIMAGE_COMPAT_TARGET.new.$$"
 MPSIMAGE_MANIFEST_TMP="$MPSIMAGE_MANIFEST_TARGET.new.$$"
+# Use the installed Apple LLVM, as ensure_metal2metal_compat.sh does for this
+# route. Runtime-confirmed on 2026-11-11 (iPad14,5 20D67): the upstream
+# llvm-16 output (342738608c91...) carries LLVM16-only attribute kinds, and
+# MTLCompilerService aborted in readModuleFromBinaryRequest on its F11H
+# (MPSGaussianBlur) specialization every ~10s. Regenerating with the Apple
+# LLVM produced the already pinned 84973060c516... and the abort loop stopped.
 python3 "$METAL2METAL" translate "$MPSIMAGE_DEFAULT" "$MPSIMAGE_COMPAT_TMP" \
-	--llvm-dis "$QC_LLVM_DIS" --llvm-as "$QC_LLVM_AS" \
+	--llvm-dis /var/jb/usr/macOS/bin/macws-llvm-dis \
+	--llvm-as /var/jb/usr/macOS/bin/macws-llvm-as \
 	--auto-lower-known-air \
 	--runtime-manifest "$MPSIMAGE_MANIFEST_TMP" \
 	--runtime-source-path "/System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSImage.framework/Versions/A/Resources/default.metallib" \

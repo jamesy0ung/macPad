@@ -21,7 +21,7 @@ ROOTFS = '/var/mnt/rootfs'
 EXTENSIONS = ROOTFS + '/System/Library/ExtensionKit/Extensions'
 SETTINGS_PLUGINS = ROOTFS + '/System/Applications/System Settings.app/Contents/PlugIns'
 BASE = ['/var/jb/usr/macOS/lib/libmachook.dylib',
-        '/var/jb/usr/lib/libellekit.dylib',
+        ROOTFS + '/System/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate',
         ROOTFS + '/usr/lib/libobjc-trampolines.dylib']
 SCHEMA = 'macws-settings-extension-runtime-v2'
 MANIFEST = ROOTFS + '/var/db/macws/settings-runtime/hashes.json'
